@@ -1,0 +1,183 @@
+<form>
+  <label>Insider Threat Detection Dashboard</label>
+  <description>Real-time monitoring and analysis of insider threats</description>
+  
+  <fieldset submitButton="false" autoRun="true">
+    <input type="time" token="time_picker">
+      <label>Time Range</label>
+      <default>
+        <earliest>-24h@h</earliest>
+        <latest>now</latest>
+      </default>
+    </input>
+    <input type="dropdown" token="risk_level">
+      <label>Risk Level</label>
+      <choice value="*">All</choice>
+      <choice value="high">High</choice>
+      <choice value="medium">Medium</choice>
+      <choice value="low">Low</choice>
+      <default>*</default>
+    </input>
+  </fieldset>
+  
+  <row>
+    <panel>
+      <title>Threat Score Distribution</title>
+      <chart>
+        <search>
+          <query>
+            index=main sourcetype=insider_threat 
+            | insider_threat_predict model_path="/opt/splunk/etc/apps/insider_threat_detection/models/model_checkpoint.h5" threshold=0.5
+            | where risk_category="$risk_level$" OR "$risk_level$"="*"
+            | bin threat_score span=0.1
+            | stats count by threat_score
+            | sort threat_score
+          </query>
+          <earliest>$time_picker.earliest$</earliest>
+          <latest>$time_picker.latest$</latest>
+        </search>
+        <option name="charting.chart">column</option>
+        <option name="charting.axisTitleX.text">Threat Score</option>
+        <option name="charting.axisTitleY.text">Count</option>
+        <option name="charting.legend.placement">none</option>
+      </chart>
+    </panel>
+    
+    <panel>
+      <title>High Risk Users</title>
+      <table>
+        <search>
+          <query>
+            index=main sourcetype=insider_threat 
+            | insider_threat_predict model_path="/opt/splunk/etc/apps/insider_threat_detection/models/model_checkpoint.h5" threshold=0.5
+            | where is_threat=true
+            | stats avg(threat_score) as avg_threat_score, count as event_count, max(threat_score) as max_threat_score by user
+            | sort -avg_threat_score
+            | head 20
+            | eval avg_threat_score=round(avg_threat_score,3), max_threat_score=round(max_threat_score,3)
+          </query>
+          <earliest>$time_picker.earliest$</earliest>
+          <latest>$time_picker.latest$</latest>
+        </search>
+        <option name="drilldown">cell</option>
+        <option name="refresh.display">progressbar</option>
+      </table>
+    </panel>
+  </row>
+  
+  <row>
+    <panel>
+      <title>Threat Activity Timeline</title>
+      <chart>
+        <search>
+          <query>
+            index=main sourcetype=insider_threat 
+            | insider_threat_predict model_path="/opt/splunk/etc/apps/insider_threat_detection/models/model_checkpoint.h5" threshold=0.5
+            | where is_threat=true
+            | timechart span=1h count by risk_category
+          </query>
+          <earliest>$time_picker.earliest$</earliest>
+          <latest>$time_picker.latest$</latest>
+        </search>
+        <option name="charting.chart">area</option>
+        <option name="charting.chart.stackMode">stacked</option>
+        <option name="charting.axisTitleX.text">Time</option>
+        <option name="charting.axisTitleY.text">Threat Events</option>
+        <option name="charting.legend.placement">bottom</option>
+      </chart>
+    </panel>
+    
+    <panel>
+      <title>Activity Type Analysis</title>
+      <chart>
+        <search>
+          <query>
+            index=main sourcetype=insider_threat 
+            | insider_threat_predict model_path="/opt/splunk/etc/apps/insider_threat_detection/models/model_checkpoint.h5" threshold=0.5
+            | where is_threat=true
+            | stats count by activity_type, risk_category
+            | eval activity_risk=activity_type." (".risk_category.")"
+          </query>
+          <earliest>$time_picker.earliest$</earliest>
+          <latest>$time_picker.latest$</latest>
+        </search>
+        <option name="charting.chart">pie</option>
+        <option name="charting.legend.placement">right</option>
+      </chart>
+    </panel>
+  </row>
+  
+  <row>
+    <panel>
+      <title>Recent High-Risk Events</title>
+      <table>
+        <search>
+          <query>
+            index=main sourcetype=insider_threat 
+            | insider_threat_predict model_path="/opt/splunk/etc/apps/insider_threat_detection/models/model_checkpoint.h5" threshold=0.5
+            | where threat_score >= 0.7
+            | sort -_time
+            | head 50
+            | table _time, user, pc, activity_type, details, threat_score, risk_category
+            | eval threat_score=round(threat_score,3)
+          </query>
+          <earliest>$time_picker.earliest$</earliest>
+          <latest>$time_picker.latest$</latest>
+        </search>
+        <option name="drilldown">cell</option>
+        <option name="refresh.display">progressbar</option>
+        <format type="color" field="risk_category">
+          <colorPalette type="map">{"high":#DC4E41,"medium":#F8BE34,"low":#53A051}</colorPalette>
+        </format>
+      </table>
+    </panel>
+  </row>
+  
+  <row>
+    <panel>
+      <title>User Behavior Patterns</title>
+      <chart>
+        <search>
+          <query>
+            index=main sourcetype=insider_threat 
+            | insider_threat_predict model_path="/opt/splunk/etc/apps/insider_threat_detection/models/model_checkpoint.h5" threshold=0.5
+            | eval hour=strftime(_time,"%H")
+            | stats avg(threat_score) as avg_threat_score by hour
+            | sort hour
+            | eval avg_threat_score=round(avg_threat_score,3)
+          </query>
+          <earliest>$time_picker.earliest$</earliest>
+          <latest>$time_picker.latest$</latest>
+        </search>
+        <option name="charting.chart">line</option>
+        <option name="charting.axisTitleX.text">Hour of Day</option>
+        <option name="charting.axisTitleY.text">Average Threat Score</option>
+        <option name="charting.legend.placement">none</option>
+      </chart>
+    </panel>
+    
+    <panel>
+      <title>Model Performance Metrics</title>
+      <single>
+        <search>
+          <query>
+            index=main sourcetype=insider_threat 
+            | insider_threat_predict model_path="/opt/splunk/etc/apps/insider_threat_detection/models/model_checkpoint.h5" threshold=0.5
+            | stats count as total_events, count(eval(is_threat=true)) as threat_events
+            | eval threat_rate=round((threat_events/total_events)*100,2)
+            | fields threat_rate
+          </query>
+          <earliest>$time_picker.earliest$</earliest>
+          <latest>$time_picker.latest$</latest>
+        </search>
+        <option name="drilldown">none</option>
+        <option name="colorBy">value</option>
+        <option name="colorMode">none</option>
+        <option name="rangeColors">["0x53A051","0xF8BE34","0xDC4E41"]</option>
+        <option name="rangeValues">[2,5]</option>
+        <option name="underLabel">Threat Detection Rate (%)</option>
+        <option name="unit">%</option>
+      </single>
+    </panel>
+  </row>
+</form>

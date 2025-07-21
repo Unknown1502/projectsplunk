@@ -1,0 +1,298 @@
+<dashboard version="1.1">
+  <label>Insider Threat Detection Dashboard</label>
+  <description>Real-time monitoring and analysis of insider threats using ML models</description>
+  
+  <row>
+    <panel>
+      <title>Threat Overview - Last 24 Hours</title>
+      <single>
+        <search>
+          <query>
+            index=insider_threat earliest=-24h@h 
+            | insider_threat_predict model_path="/opt/splunk/etc/apps/insider_threat_detection/bin/models/latest_model.h5" 
+            | stats count(eval(threat_score>=0.5)) as threats, count as total 
+            | eval threat_percentage=round((threats/total)*100,2) 
+            | fields threat_percentage
+          </query>
+          <earliest>-24h@h</earliest>
+          <latest>now</latest>
+          <refresh>5m</refresh>
+        </search>
+        <option name="drilldown">none</option>
+        <option name="colorBy">value</option>
+        <option name="colorMode">none</option>
+        <option name="rangeColors">["0x65A637","0xF7BC38","0xF58F39","0xD93F3C"]</option>
+        <option name="rangeValues">[0,5,10,20]</option>
+        <option name="showSparkline">1</option>
+        <option name="showTrendIndicator">1</option>
+        <option name="trendColorInterpretation">standard</option>
+        <option name="trendDisplayMode">absolute</option>
+        <option name="unitPosition">after</option>
+        <option name="useColors">1</option>
+        <option name="useThousandSeparators">1</option>
+        <option name="numberPrecision">0.00</option>
+        <option name="unit">%</option>
+      </single>
+    </panel>
+    
+    <panel>
+      <title>High Risk Users</title>
+      <single>
+        <search>
+          <query>
+            index=insider_threat earliest=-24h@h threat_score>=0.8 
+            | stats dc(user) as high_risk_users
+          </query>
+          <earliest>-24h@h</earliest>
+          <latest>now</latest>
+          <refresh>5m</refresh>
+        </search>
+        <option name="drilldown">none</option>
+        <option name="colorBy">value</option>
+        <option name="colorMode">none</option>
+        <option name="rangeColors">["0x65A637","0xF7BC38","0xF58F39","0xD93F3C"]</option>
+        <option name="rangeValues">[0,5,10,20]</option>
+        <option name="showSparkline">1</option>
+        <option name="showTrendIndicator">1</option>
+        <option name="trendColorInterpretation">inverse</option>
+        <option name="trendDisplayMode">absolute</option>
+        <option name="useColors">1</option>
+        <option name="useThousandSeparators">1</option>
+      </single>
+    </panel>
+    
+    <panel>
+      <title>Model Accuracy</title>
+      <single>
+        <search>
+          <query>
+            index=insider_threat_metrics sourcetype=insider_threat:evaluation 
+            | stats latest(accuracy) as accuracy 
+            | eval accuracy=round(accuracy*100,2)
+          </query>
+          <earliest>-7d@d</earliest>
+          <latest>now</latest>
+          <refresh>1h</refresh>
+        </search>
+        <option name="drilldown">none</option>
+        <option name="numberPrecision">0.00</option>
+        <option name="unit">%</option>
+        <option name="rangeColors">["0xD93F3C","0xF58F39","0xF7BC38","0x65A637"]</option>
+        <option name="rangeValues">[0,70,85,95]</option>
+        <option name="useColors">1</option>
+      </single>
+    </panel>
+  </row>
+  
+  <row>
+    <panel>
+      <title>Threat Score Distribution</title>
+      <chart>
+        <search>
+          <query>
+            index=insider_threat earliest=-24h@h 
+            | insider_threat_predict model_path="/opt/splunk/etc/apps/insider_threat_detection/bin/models/latest_model.h5" 
+            | bin threat_score span=0.1 
+            | stats count by threat_score 
+            | sort threat_score
+          </query>
+          <earliest>-24h@h</earliest>
+          <latest>now</latest>
+          <refresh>10m</refresh>
+        </search>
+        <option name="charting.chart">column</option>
+        <option name="charting.axisLabelsX.majorLabelStyle.overflowMode">ellipsisNone</option>
+        <option name="charting.axisLabelsX.majorLabelStyle.rotation">0</option>
+        <option name="charting.axisTitleX.text">Threat Score</option>
+        <option name="charting.axisTitleY.text">Count</option>
+        <option name="charting.axisTitleX.visibility">visible</option>
+        <option name="charting.axisTitleY.visibility">visible</option>
+        <option name="charting.axisTitleY2.visibility">visible</option>
+        <option name="charting.axisX.scale">linear</option>
+        <option name="charting.axisY.scale">linear</option>
+        <option name="charting.axisY2.enabled">0</option>
+        <option name="charting.axisY2.scale">inherit</option>
+        <option name="charting.chart.bubbleMaximumSize">50</option>
+        <option name="charting.chart.bubbleMinimumSize">10</option>
+        <option name="charting.chart.bubbleSizeBy">area</option>
+        <option name="charting.chart.nullValueMode">gaps</option>
+        <option name="charting.chart.showDataLabels">none</option>
+        <option name="charting.chart.sliceCollapsingThreshold">0.01</option>
+        <option name="charting.chart.stackMode">default</option>
+        <option name="charting.chart.style">shiny</option>
+        <option name="charting.drilldown">none</option>
+        <option name="charting.layout.splitSeries">0</option>
+        <option name="charting.layout.splitSeries.allowIndependentYRanges">0</option>
+        <option name="charting.legend.labelStyle.overflowMode">ellipsisMiddle</option>
+        <option name="charting.legend.mode">standard</option>
+        <option name="charting.legend.placement">none</option>
+        <option name="charting.lineWidth">2</option>
+        <option name="refresh.display">progressbar</option>
+      </chart>
+    </panel>
+    
+    <panel>
+      <title>Risk Categories Over Time</title>
+      <chart>
+        <search>
+          <query>
+            index=insider_threat earliest=-24h@h 
+            | insider_threat_score 
+            | timechart span=1h count by risk_category
+          </query>
+          <earliest>-24h@h</earliest>
+          <latest>now</latest>
+          <refresh>5m</refresh>
+        </search>
+        <option name="charting.chart">area</option>
+        <option name="charting.axisLabelsX.majorLabelStyle.overflowMode">ellipsisNone</option>
+        <option name="charting.axisLabelsX.majorLabelStyle.rotation">0</option>
+        <option name="charting.axisTitleX.visibility">collapsed</option>
+        <option name="charting.axisTitleY.visibility">visible</option>
+        <option name="charting.axisTitleY.text">Count</option>
+        <option name="charting.axisTitleY2.visibility">visible</option>
+        <option name="charting.axisX.scale">linear</option>
+        <option name="charting.axisY.scale">linear</option>
+        <option name="charting.axisY2.enabled">0</option>
+        <option name="charting.axisY2.scale">inherit</option>
+        <option name="charting.chart.bubbleMaximumSize">50</option>
+        <option name="charting.chart.bubbleMinimumSize">10</option>
+        <option name="charting.chart.bubbleSizeBy">area</option>
+        <option name="charting.chart.nullValueMode">gaps</option>
+        <option name="charting.chart.showDataLabels">none</option>
+        <option name="charting.chart.sliceCollapsingThreshold">0.01</option>
+        <option name="charting.chart.stackMode">stacked</option>
+        <option name="charting.chart.style">shiny</option>
+        <option name="charting.drilldown">none</option>
+        <option name="charting.layout.splitSeries">0</option>
+        <option name="charting.layout.splitSeries.allowIndependentYRanges">0</option>
+        <option name="charting.legend.labelStyle.overflowMode">ellipsisMiddle</option>
+        <option name="charting.legend.mode">standard</option>
+        <option name="charting.legend.placement">right</option>
+        <option name="charting.lineWidth">2</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="charting.fieldColors">{"critical":"#DC4E41","high":"#F8BE34","medium":"#F1813F","low":"#53A051","info":"#006D9C"}</option>
+      </chart>
+    </panel>
+  </row>
+  
+  <row>
+    <panel>
+      <title>Top 10 High Risk Users</title>
+      <table>
+        <search>
+          <query>
+            index=insider_threat earliest=-24h@h 
+            | insider_threat_predict model_path="/opt/splunk/etc/apps/insider_threat_detection/bin/models/latest_model.h5" 
+            | stats avg(threat_score) as avg_score, max(threat_score) as max_score, count as activity_count by user 
+            | eval avg_score=round(avg_score,3), max_score=round(max_score,3) 
+            | sort -max_score 
+            | head 10
+          </query>
+          <earliest>-24h@h</earliest>
+          <latest>now</latest>
+          <refresh>5m</refresh>
+        </search>
+        <option name="count">10</option>
+        <option name="dataOverlayMode">none</option>
+        <option name="drilldown">cell</option>
+        <option name="percentagesRow">false</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="rowNumbers">true</option>
+        <option name="totalsRow">false</option>
+        <option name="wrap">true</option>
+        <format type="color" field="max_score">
+          <colorPalette type="list">[#65A637,#F7BC38,#F58F39,#D93F3C]</colorPalette>
+          <scale type="threshold">0.3,0.5,0.8</scale>
+        </format>
+        <format type="color" field="avg_score">
+          <colorPalette type="list">[#65A637,#F7BC38,#F58F39,#D93F3C]</colorPalette>
+          <scale type="threshold">0.3,0.5,0.8</scale>
+        </format>
+      </table>
+    </panel>
+  </row>
+  
+  <row>
+    <panel>
+      <title>Recent High-Risk Activities</title>
+      <table>
+        <search>
+          <query>
+            index=insider_threat earliest=-1h@h 
+            | insider_threat_predict model_path="/opt/splunk/etc/apps/insider_threat_detection/bin/models/latest_model.h5" 
+            | where threat_score >= 0.7 
+            | insider_threat_explain 
+            | table _time, user, host, activity_type, threat_score, risk_category, threat_explanation 
+            | sort -_time 
+            | head 20
+          </query>
+          <earliest>-1h@h</earliest>
+          <latest>now</latest>
+          <refresh>1m</refresh>
+        </search>
+        <option name="count">20</option>
+        <option name="dataOverlayMode">none</option>
+        <option name="drilldown">cell</option>
+        <option name="percentagesRow">false</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="rowNumbers">false</option>
+        <option name="totalsRow">false</option>
+        <option name="wrap">true</option>
+        <format type="color" field="threat_score">
+          <colorPalette type="list">[#65A637,#F7BC38,#F58F39,#D93F3C]</colorPalette>
+          <scale type="threshold">0.3,0.5,0.8</scale>
+        </format>
+        <format type="color" field="risk_category">
+          <colorPalette type="map">{"critical":#D93F3C,"high":#F58F39,"medium":#F7BC38,"low":#65A637,"info":#5379AF}</colorPalette>
+        </format>
+      </table>
+    </panel>
+  </row>
+  
+  <row>
+    <panel>
+      <title>Model Performance Metrics</title>
+      <chart>
+        <search>
+          <query>
+            index=insider_threat_metrics sourcetype=insider_threat:evaluation earliest=-7d@d 
+            | timechart span=1d latest(accuracy) as Accuracy, latest(precision) as Precision, latest(recall) as Recall, latest(f1_score) as F1_Score
+          </query>
+          <earliest>-7d@d</earliest>
+          <latest>now</latest>
+          <refresh>1h</refresh>
+        </search>
+        <option name="charting.chart">line</option>
+        <option name="charting.axisLabelsX.majorLabelStyle.overflowMode">ellipsisNone</option>
+        <option name="charting.axisLabelsX.majorLabelStyle.rotation">0</option>
+        <option name="charting.axisTitleX.visibility">collapsed</option>
+        <option name="charting.axisTitleY.visibility">visible</option>
+        <option name="charting.axisTitleY.text">Score</option>
+        <option name="charting.axisTitleY2.visibility">visible</option>
+        <option name="charting.axisX.scale">linear</option>
+        <option name="charting.axisY.scale">linear</option>
+        <option name="charting.axisY.minimumNumber">0</option>
+        <option name="charting.axisY.maximumNumber">1</option>
+        <option name="charting.axisY2.enabled">0</option>
+        <option name="charting.axisY2.scale">inherit</option>
+        <option name="charting.chart.bubbleMaximumSize">50</option>
+        <option name="charting.chart.bubbleMinimumSize">10</option>
+        <option name="charting.chart.bubbleSizeBy">area</option>
+        <option name="charting.chart.nullValueMode">connect</option>
+        <option name="charting.chart.showDataLabels">none</option>
+        <option name="charting.chart.sliceCollapsingThreshold">0.01</option>
+        <option name="charting.chart.stackMode">default</option>
+        <option name="charting.chart.style">shiny</option>
+        <option name="charting.drilldown">none</option>
+        <option name="charting.layout.splitSeries">0</option>
+        <option name="charting.layout.splitSeries.allowIndependentYRanges">0</option>
+        <option name="charting.legend.labelStyle.overflowMode">ellipsisMiddle</option>
+        <option name="charting.legend.mode">standard</option>
+        <option name="charting.legend.placement">bottom</option>
+        <option name="charting.lineWidth">2</option>
+        <option name="refresh.display">progressbar</option>
+      </chart>
+    </panel>
+  </row>
+</dashboard>

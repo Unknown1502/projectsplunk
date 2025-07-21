@@ -1,0 +1,29 @@
+{
+  "last_epoch": 27,
+  "sequence_length": 18,
+  "feature_columns": [
+    "hour_sin",
+    "hour_cos",
+    "day_sin",
+    "day_cos",
+    "is_weekend",
+    "is_off_hours",
+    "activity_type_encoded",
+    "user_freq",
+    "pc_freq",
+    "details_freq",
+    "total_activities",
+    "avg_hour",
+    "hour_std",
+    "unique_pcs",
+    "off_hours_ratio",
+    "weekend_ratio",
+    "activity_entropy",
+    "anomaly_score"
+  ],
+  "timestamp": "2025-07-19T00:04:12.038690",
+  "model_path": "C:\\Users\\nikhi\\projectsplunk\\r1\\checkpoints\\model_checkpoint.h5",
+  "scaler_available": true,
+  "encoders_available": true,
+  "training_completed": true
+}

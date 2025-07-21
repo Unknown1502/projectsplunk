@@ -1,0 +1,38 @@
+
+# MANUAL SPLUNK UPLOAD INSTRUCTIONS
+
+Since the Splunk Extension isn't available, here are 3 ways to get your data into Splunk:
+
+## Method 1: Splunk Web Upload (EASIEST)
+1. Open Splunk Web: http://localhost:8000
+2. Go to: Settings -> Add Data -> Upload
+3. Select "threat_predictions.csv"
+4. Follow the wizard:
+   - Set Source type: csv
+   - Review settings
+   - Submit
+5. Search: index=main source="threat_predictions.csv"
+
+## Method 2: Copy to Splunk Directory
+1. Run this script as Administrator
+2. It will copy the CSV to Splunk's lookup directory
+3. In Splunk, search: | inputlookup insider_threats.csv
+
+## Method 3: Monitor Directory
+1. Create folder: C:\SplunkData
+2. Copy threat_predictions.csv there
+3. In Splunk: Settings -> Data Inputs -> Files & Directories
+4. Add C:\SplunkData as monitored directory
+5. Splunk will automatically index new files
+
+## Method 4: Use Existing HEC (if fixed)
+After fixing HEC configuration:
+```python
+import requests
+url = "http://localhost:8088/services/collector/event"
+headers = {"Authorization": "Splunk YOUR_TOKEN"}
+data = {"event": {"user": "test", "threat_score": 0.8}}
+requests.post(url, json=data, headers=headers)
+```
+
+Choose the method that works best for your setup!

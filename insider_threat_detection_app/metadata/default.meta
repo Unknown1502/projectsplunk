@@ -1,0 +1,109 @@
+# Application-level permissions
+
+[]
+access = read : [ * ], write : [ admin, power ]
+
+### VIEWS
+
+[views]
+access = read : [ * ], write : [ admin, power ]
+export = system
+
+[views/insider_threat_dashboard]
+access = read : [ * ], write : [ admin, power ]
+export = system
+owner = admin
+version = 8.2.0
+modtime = 1234567890.000000000
+
+### PROPS
+
+[props]
+access = read : [ * ], write : [ admin, power ]
+export = system
+
+[props/insider_threat]
+access = read : [ * ], write : [ admin, power ]
+export = system
+
+### TRANSFORMS
+
+[transforms]
+access = read : [ * ], write : [ admin, power ]
+export = system
+
+[transforms/insider_threat_csv_fields]
+access = read : [ * ], write : [ admin, power ]
+export = system
+
+### LOOKUPS
+
+[lookups]
+access = read : [ * ], write : [ admin, power ]
+export = system
+
+[lookups/insider_threat_users.csv]
+access = read : [ * ], write : [ admin, power ]
+export = system
+
+[lookups/threat_scores.csv]
+access = read : [ * ], write : [ admin, power ]
+export = system
+
+[lookups/user_risk_profiles.csv]
+access = read : [ * ], write : [ admin, power ]
+export = system
+
+### SAVEDSEARCHES
+
+[savedsearches]
+access = read : [ * ], write : [ admin, power ]
+export = system
+
+[savedsearches/Insider%20Threat%20-%20High%20Risk%20Detection]
+access = read : [ * ], write : [ admin, power ]
+export = system
+
+[savedsearches/Insider%20Threat%20-%20Anomalous%20User%20Behavior]
+access = read : [ * ], write : [ admin, power ]
+export = system
+
+### COMMANDS
+
+[commands]
+access = read : [ * ], write : [ admin, power ]
+export = system
+
+[commands/insider_threat_predict]
+access = read : [ * ], write : [ admin, power ]
+export = system
+
+[commands/insider_threat_train]
+access = read : [ admin, power ], write : [ admin ]
+export = system
+
+[commands/insider_threat_monitor]
+access = read : [ * ], write : [ admin, power ]
+export = system
+
+[commands/insider_threat_score]
+access = read : [ * ], write : [ admin, power ]
+export = system
+
+[commands/insider_threat_explain]
+access = read : [ * ], write : [ admin, power ]
+export = system
+
+### INDEXES
+
+[indexes]
+access = read : [ * ], write : [ admin, power ]
+export = system
+
+[indexes/insider_threat]
+access = read : [ * ], write : [ admin, power ]
+export = system
+
+[indexes/insider_threat_metrics]
+access = read : [ * ], write : [ admin, power ]
+export = system

@@ -1,0 +1,35 @@
+<nav search_view="search">
+  <view name="insider_threat_dashboard" default="true" />
+  <view name="search" />
+  <view name="datasets" />
+  <view name="reports" />
+  <view name="alerts" />
+  <view name="dashboards" />
+  
+  <collection label="Threat Analysis">
+    <view name="insider_threat_dashboard" />
+    <divider />
+    <saved name="Insider Threat - High Risk Detection" />
+    <saved name="Insider Threat - Anomalous User Behavior" />
+    <saved name="Insider Threat - Daily Risk Summary" />
+  </collection>
+  
+  <collection label="Model Management">
+    <saved name="Insider Threat - Model Performance Metrics" />
+    <saved name="Insider Threat - Training Data Quality Check" />
+    <divider />
+    <a href="/app/insider_threat_detection/search?q=%7C%20insider_threat_train">Train New Model</a>
+  </collection>
+  
+  <collection label="Configuration">
+    <a href="/manager/insider_threat_detection/data/inputs/script">Script Inputs</a>
+    <a href="/manager/insider_threat_detection/data/inputs/http">HTTP Event Collector</a>
+    <a href="/manager/insider_threat_detection/data/props/insider_threat">Field Extractions</a>
+    <a href="/manager/insider_threat_detection/data/transforms/lookups">Lookups</a>
+  </collection>
+  
+  <collection label="Documentation">
+    <a href="/app/insider_threat_detection/README">User Guide</a>
+    <a href="/app/insider_threat_detection/search?q=%7C%20insider_threat_predict%20help%3Dtrue">Command Reference</a>
+  </collection>
+</nav>

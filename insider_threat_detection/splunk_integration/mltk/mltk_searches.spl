@@ -1,0 +1,171 @@
+# MLTK Integration Searches for Insider Threat Detection
+# These searches demonstrate how to use MLTK algorithms for insider threat detection
+
+# 1. Data Preparation for MLTK
+# Prepare your data with proper feature engineering
+index=main sourcetype=insider_threat
+| eval hour=strftime(_time,"%H")
+| eval day_of_week=strftime(_time,"%w") 
+| eval is_weekend=if(day_of_week IN (0,6), 1, 0)
+| eval is_after_hours=if(hour < 8 OR hour > 18, 1, 0)
+| stats count as activity_count, 
+        dc(pc) as unique_pcs, 
+        dc(activity_type) as unique_activities,
+        avg(is_after_hours) as after_hours_ratio,
+        avg(is_weekend) as weekend_ratio
+        by user
+| eval risk_label=if(activity_count > 100 AND unique_pcs > 5, 1, 0)
+| outputlookup insider_threat_features.csv
+
+# 2. Train Clustering Model (Unsupervised)
+# Identify unusual user behavior patterns
+| inputlookup insider_threat_features.csv
+| fit KMeans activity_count unique_pcs unique_activities after_hours_ratio weekend_ratio k=5 into user_behavior_clusters
+| apply user_behavior_clusters
+| eval anomaly_score=case(
+    cluster=0, 0.1,
+    cluster=1, 0.3,
+    cluster=2, 0.7,
+    cluster=3, 0.9,
+    cluster=4, 0.5
+)
+| table user cluster anomaly_score activity_count unique_pcs
+
+# 3. Train Classification Model (Supervised)
+# Train a model to predict insider threats
+| inputlookup insider_threat_features.csv
+| fit RandomForestClassifier risk_label from activity_count unique_pcs unique_activities after_hours_ratio weekend_ratio into insider_threat_classifier
+| summary insider_threat_classifier
+
+# 4. Apply Classification Model
+# Use the trained model for predictions
+| inputlookup insider_threat_features.csv
+| apply insider_threat_classifier
+| eval threat_probability=predicted_risk_label
+| eval risk_category=case(
+    threat_probability >= 0.8, "high",
+    threat_probability >= 0.5, "medium",
+    threat_probability >= 0.2, "low",
+    1=1, "info"
+)
+| table user threat_probability risk_category activity_count unique_pcs
+
+# 5. Anomaly Detection using Isolation Forest
+# Detect outliers in user behavior
+| inputlookup insider_threat_features.csv
+| fit IsolationForest activity_count unique_pcs unique_activities after_hours_ratio weekend_ratio contamination=0.1 into isolation_forest_model
+| apply isolation_forest_model
+| eval is_anomaly=if(outlier=-1, 1, 0)
+| where is_anomaly=1
+| table user activity_count unique_pcs unique_activities is_anomaly
+
+# 6. Time Series Forecasting
+# Predict future activity levels
+| inputlookup insider_threat_features.csv
+| eval _time=strptime("2023-01-01", "%Y-%m-%d")
+| sort _time
+| fit StateSpaceForecast activity_count holdback=10 into activity_forecast_model
+| apply activity_forecast_model
+| eval anomaly=if(abs(activity_count-predicted_activity_count) > 2*upper95_predicted_activity_count, 1, 0)
+| table _time user activity_count predicted_activity_count anomaly
+
+# 7. Association Rules Mining
+# Find patterns in user activities
+index=main sourcetype=insider_threat
+| stats count by user activity_type
+| eval user_activity=user.":".activity_type
+| stats list(user_activity) as activities by user
+| fit Apriori activities support=0.1 confidence=0.8 into activity_patterns
+| apply activity_patterns
+| table antecedents consequents confidence support
+
+# 8. Real-time Scoring Pipeline
+# Continuous scoring of incoming events
+index=main sourcetype=insider_threat earliest=-15m
+| eval hour=strftime(_time,"%H")
+| eval is_after_hours=if(hour < 8 OR hour > 18, 1, 0)
+| stats count as recent_activity, 
+        dc(pc) as recent_pcs, 
+        dc(activity_type) as recent_activities,
+        avg(is_after_hours) as recent_after_hours_ratio
+        by user
+| apply insider_threat_classifier
+| eval current_risk=predicted_risk_label
+| eval risk_level=case(
+    current_risk >= 0.8, "CRITICAL",
+    current_risk >= 0.6, "HIGH", 
+    current_risk >= 0.4, "MEDIUM",
+    1=1, "LOW"
+)
+| where risk_level IN ("CRITICAL", "HIGH")
+| table user current_risk risk_level recent_activity recent_pcs
+
+# 9. Feature Importance Analysis
+# Understand which features are most important
+| inputlookup insider_threat_features.csv
+| fit RandomForestClassifier risk_label from activity_count unique_pcs unique_activities after_hours_ratio weekend_ratio into feature_importance_model
+| summary feature_importance_model
+| transpose
+| rename column as feature, "row 1" as importance
+| sort -importance
+
+# 10. Model Performance Evaluation
+# Evaluate model accuracy and performance
+| inputlookup insider_threat_features.csv
+| fit RandomForestClassifier risk_label from activity_count unique_pcs unique_activities after_hours_ratio weekend_ratio into evaluation_model
+| apply evaluation_model
+| eval correct_prediction=if(risk_label=predicted_risk_label, 1, 0)
+| stats avg(correct_prediction) as accuracy,
+        count(eval(risk_label=1 AND predicted_risk_label=1)) as true_positives,
+        count(eval(risk_label=0 AND predicted_risk_label=1)) as false_positives,
+        count(eval(risk_label=1 AND predicted_risk_label=0)) as false_negatives
+| eval precision=true_positives/(true_positives+false_positives)
+| eval recall=true_positives/(true_positives+false_negatives)
+| eval f1_score=2*(precision*recall)/(precision+recall)
+| table accuracy precision recall f1_score
+
+# 11. Ensemble Model Approach
+# Combine multiple models for better accuracy
+| inputlookup insider_threat_features.csv
+| fit RandomForestClassifier risk_label from activity_count unique_pcs unique_activities after_hours_ratio weekend_ratio into rf_model
+| fit GradientBoostingClassifier risk_label from activity_count unique_pcs unique_activities after_hours_ratio weekend_ratio into gb_model
+| apply rf_model as rf_prediction
+| apply gb_model as gb_prediction
+| eval ensemble_prediction=(predicted_risk_label_rf + predicted_risk_label_gb)/2
+| eval final_risk=case(
+    ensemble_prediction >= 0.7, "high",
+    ensemble_prediction >= 0.4, "medium", 
+    1=1, "low"
+)
+| table user ensemble_prediction final_risk
+
+# 12. Behavioral Baseline Creation
+# Create user behavior baselines
+index=main sourcetype=insider_threat earliest=-30d latest=-7d
+| eval hour=strftime(_time,"%H")
+| stats avg(count) as baseline_activity,
+        stdev(count) as activity_std,
+        dc(pc) as baseline_pcs,
+        dc(activity_type) as baseline_activities
+        by user
+| outputlookup user_baselines.csv
+
+# 13. Deviation Detection
+# Compare current behavior to baseline
+index=main sourcetype=insider_threat earliest=-1d
+| eval hour=strftime(_time,"%H")
+| stats count as current_activity,
+        dc(pc) as current_pcs,
+        dc(activity_type) as current_activities
+        by user
+| lookup user_baselines.csv user
+| eval activity_deviation=abs(current_activity-baseline_activity)/activity_std
+| eval pc_deviation=abs(current_pcs-baseline_pcs)
+| eval activity_deviation_score=case(
+    activity_deviation > 3, 0.9,
+    activity_deviation > 2, 0.7,
+    activity_deviation > 1, 0.4,
+    1=1, 0.1
+)
+| where activity_deviation_score >= 0.4
+| table user current_activity baseline_activity activity_deviation activity_deviation_score
